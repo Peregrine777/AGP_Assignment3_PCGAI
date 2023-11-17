@@ -68,7 +68,7 @@ void ATorchPickup::OnPickedUp(ABaseCharacter* BaseCharacter)
 		return;
 	}
 
-	BaseCharacter->EquipTorch(true, bIsLit);
+	//BaseCharacter->EquipTorch(true, bIsLit);
 	this->Destroy();
 }
 

@@ -33,9 +33,11 @@ public:
 	UFUNCTION(BlueprintCallable)
 	bool HasWeapon();
 
+	UFUNCTION(BlueprintCallable)
+	bool GetHasTorch();
 
 	UFUNCTION(BlueprintCallable)
-	bool HasTorch();
+	bool GetHeldTorchLit();
 
 	void SetIsOverlappingPickup(bool bIsOverlapping);
 	TSubclassOf<APickupBase>* PickupActor;
@@ -49,7 +51,7 @@ public:
 	 */
 	void EquipWeapon(bool bEquipWeapon, const FWeaponStats WeaponStats, const EWeaponRarity WeaponRarity);
 
-	void EquipTorch(bool bEquipTorch, bool bIsLit);
+	void EquipTorch(ATorchPickup* Torch);
 
 	void PickupArtefact(int ArtefactID);
 
@@ -140,7 +142,15 @@ protected:
 	bool bIsReloading;
 	float TimeSinceReload;
 
+	UPROPERTY(ReplicatedUsing = OnRep_UpdateEquipped, VisibleAnywhere)
 	bool bHasTorch = false;
+
+	UPROPERTY(Replicated, VisibleAnywhere)
+	bool bHeldTorchLit = false;
+
+	UFUNCTION()
+	void OnRep_UpdateEquipped();
+	
 	UPROPERTY(Replicated, VisibleAnywhere)
 	bool bHasSkull = false;
 

@@ -3,6 +3,7 @@
 
 #include "BaseCharacter.h"
 
+#include "EngineUtils.h"
 #include "../Pickups/WeaponPickup.h"
 #include "AGP/Pickups/ArtefactPickup.h"
 #include "AGP/Pickups/PedestalInteract.h"
@@ -63,6 +64,8 @@ void ABaseCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLi
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME(ABaseCharacter, WeaponComponent);
+	DOREPLIFETIME(ABaseCharacter, bHasTorch);
+	DOREPLIFETIME(ABaseCharacter, bHeldTorchLit);
 	DOREPLIFETIME_CONDITION(ABaseCharacter, ArtefactsCarried, COND_OwnerOnly)
 }
 
@@ -75,9 +78,14 @@ bool ABaseCharacter::HasWeapon()
 	return false;
 }
 
-bool ABaseCharacter::HasTorch()
+bool ABaseCharacter::GetHasTorch()
 {
 	return bHasTorch;
+}
+
+bool ABaseCharacter::GetHeldTorchLit()
+{
+	return bHeldTorchLit;
 }
 
 void ABaseCharacter::SetIsOverlappingPickup(bool bIsOverlapping)
@@ -99,22 +107,24 @@ void ABaseCharacter::EquipWeapon(bool bEquipWeapon, const FWeaponStats WeaponSta
 	}
 }
 
-void ABaseCharacter::EquipTorch(bool bEquipTorch, bool bIsLit)
+void ABaseCharacter::EquipTorch(ATorchPickup* Torch)
 {
-	//if has authority
-	if (GetLocalRole() == ROLE_Authority)
-	{
-		//EquipTorchGraphical(bEquipTorch, bIsLit);
-		MulticastEquipTorch(bEquipTorch, bIsLit);
-	}
+	bHasTorch = true;
+	bHeldTorchLit = Torch->bIsLit;
+	ServerEquipTorch(Torch);
+	EquipTorchGraphical(bHasTorch, bHeldTorchLit);
+	
 }
 
 void ABaseCharacter::ServerEquipTorch_Implementation(ATorchPickup* TorchPickup)
 {
+	UE_LOG(LogTemp, Display, TEXT("Server Torch Equip for: %s"), *GetName());
 	if (TorchPickup && bHasTorch == false)
 	{
-		TorchPickup->AttemptPickUp(this);
+		//TorchPickup->AttemptPickUp(this);
 		bHasTorch = true;
+		bHeldTorchLit = TorchPickup->bIsLit;
+		TorchPickup->Destroy();
 	}
 }
 
@@ -235,8 +245,6 @@ void ABaseCharacter::OnGetSkull()
 	bHasSkull = true;
 }
 
-
-
 bool ABaseCharacter::Fire(const FVector& FireAtLocation)
 {
 	if (HasWeapon())
@@ -268,6 +276,24 @@ bool ABaseCharacter::Reload()
 void ABaseCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
 	Super::SetupPlayerInputComponent(PlayerInputComponent);
+}
+
+void ABaseCharacter::OnRep_UpdateEquipped()
+{
+	for (TActorIterator<ABaseCharacter> ActorItr(GetWorld()); ActorItr; ++ActorItr)
+	{
+		if (ActorItr->GetHasTorch())
+		{
+			//Log The Actor's Name
+			UE_LOG(LogTemp, Warning, TEXT("Has Torch: %s"), *ActorItr->GetName());
+			//log GetHeldTorchLit Bool to string
+			UE_LOG(LogTemp, Warning, TEXT("Torch Lit: %s"), ActorItr->GetHeldTorchLit() ? TEXT("True") : TEXT("False"));
+		}
+	}
+	if (bHasTorch)
+	{
+		EquipTorchGraphical(bHasTorch, bHeldTorchLit);
+	}
 }
 
 bool ABaseCharacter::Interact()
@@ -336,7 +362,7 @@ bool ABaseCharacter::Pickup()
 		{
 			UE_LOG(LogTemp, Display, TEXT("Player is picking up torch: %s"), *this->GetActorLabel());
 			// Call a method on the pickup object to handle being picked up
-			ServerEquipTorch(TorchPickup);
+			EquipTorch(TorchPickup);
 		}
 		//if it is AArtefactPickup
 		else if (AArtefactPickup* ArtefactPickup = Cast<AArtefactPickup>(HitResult.GetActor()))
